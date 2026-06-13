@@ -56,11 +56,11 @@ export async function POST(req: NextRequest) {
         companyId: companyId
       }
     })
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Invalid request data' }, { status: 400 })
     }
     console.error('Login error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: error?.message || String(error), stack: error?.stack }, { status: 500 })
   }
 }
