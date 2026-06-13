@@ -1,0 +1,385 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Company {
+  id              String        @id @default(cuid())
+  name            String
+  slug            String        @unique
+  domain          String?       @unique
+  logoUrl         String?
+  primaryColor    String?
+  status          CompanyStatus @default(TRIAL)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+
+  memberships     Membership[]
+  leads           Lead[]
+  clients         Client[]
+  projects        Project[]
+  tasks           Task[]
+  proposals       Proposal[]
+  activities      Activity[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+  settings        CompanySettings?
+}
+
+enum CompanyStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+model CompanySettings {
+  id              String   @id @default(cuid())
+  companyId       String   @unique
+  emailBranding   Json?
+  customDomain    String?
+  updatedAt       DateTime @updatedAt
+
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String
+  firstName       String
+  lastName        String
+  avatarUrl       String?
+  isActive        Boolean   @default(true)
+  isSuperAdmin    Boolean   @default(false)
+  lastLoginAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  memberships     Membership[]
+  sessions        Session[]
+  assignedLeads   Lead[]    @relation("AssignedBDE")
+  activities      Activity[]
+  tasks           Task[]
+  auditLogs       AuditLog[]
+  notifications   Notification[]
+}
+
+model Membership {
+  id              String    @id @default(cuid())
+  userId          String
+  companyId       String
+  role            UserRole
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+  @@index([userId])
+}
+
+enum UserRole {
+  COMPANY_ADMIN
+  BDM
+  BDE
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  token        String   @unique
+  expiresAt    DateTime
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+model Lead {
+  id              String       @id @default(cuid())
+  companyId       String
+  assignedBdeId   String?
+  name            String
+  phone           String
+  email           String?
+  company         String?
+  industry        String?
+  source          LeadSource   @default(MANUAL)
+  status          LeadStatus   @default(NEW)
+  value           Decimal?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+
+  tenant          Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedBde     User?        @relation("AssignedBDE", fields: [assignedBdeId], references: [id], onDelete: SetNull)
+  
+  activities      Activity[]
+  tasks           Task[]
+  meetings        Meeting[]
+  proposals       Proposal[]
+  client          Client?
+  followUps       FollowUp[]
+
+  @@index([companyId, status])
+  @@index([companyId, assignedBdeId])
+  @@index([companyId, createdAt])
+  @@index([companyId, email])
+}
+
+enum LeadSource {
+  META_ADS
+  MANUAL
+  REFERRAL
+  WEBSITE
+  OTHER
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  MEETING_SCHEDULED
+  PROPOSAL_SENT
+  NEGOTIATION
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+model FollowUp {
+  id          String         @id @default(cuid())
+  companyId   String
+  leadId      String
+  scheduledAt DateTime
+  completedAt DateTime?
+  notes       String?
+  status      FollowUpStatus @default(PENDING)
+  createdAt   DateTime       @default(now())
+
+  lead        Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status, scheduledAt])
+  @@index([leadId])
+}
+
+enum FollowUpStatus {
+  PENDING
+  COMPLETED
+  MISSED
+  RESCHEDULED
+}
+
+model Meeting {
+  id           String        @id @default(cuid())
+  companyId    String
+  leadId       String?
+  title        String
+  scheduledAt  DateTime
+  duration     Int
+  meetLink     String?
+  status       MeetingStatus @default(SCHEDULED)
+  createdAt    DateTime      @default(now())
+
+  lead         Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, scheduledAt])
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+model Task {
+  id          String      @id @default(cuid())
+  companyId   String
+  leadId      String?
+  projectId   String?
+  assigneeId  String
+  title       String
+  priority    Priority    @default(MEDIUM)
+  status      TaskStatus  @default(PENDING)
+  dueDate     DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  tenant      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lead        Lead?       @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  project     Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  assignee    User        @relation(fields: [assigneeId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, assigneeId, status])
+  @@index([leadId])
+  @@index([projectId])
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model Proposal {
+  id          String          @id @default(cuid())
+  companyId   String
+  leadId      String
+  title       String
+  content     Json            
+  totalValue  Decimal?
+  status      ProposalStatus  @default(DRAFT)
+  version     Int             @default(1)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  tenant      Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lead        Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status])
+  @@index([leadId])
+}
+
+enum ProposalStatus {
+  DRAFT
+  PENDING_APPROVAL
+  SENT
+  ACCEPTED
+  REJECTED
+}
+
+model Client {
+  id          String    @id @default(cuid())
+  companyId   String
+  leadId      String    @unique
+  name        String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  tenant      Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lead        Lead      @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  projects    Project[]
+
+  @@index([companyId])
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  companyId   String
+  clientId    String
+  name        String
+  status      ProjectStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  tenant      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client      Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+
+  @@index([companyId, status])
+  @@index([clientId])
+}
+
+enum ProjectStatus {
+  PENDING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+model Activity {
+  id          String       @id @default(cuid())
+  companyId   String
+  userId      String
+  leadId      String?
+  type        ActivityType
+  description String
+  createdAt   DateTime     @default(now())
+
+  tenant      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lead        Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, userId])
+  @@index([leadId])
+  @@index([companyId, createdAt])
+}
+
+enum ActivityType {
+  CALL
+  EMAIL
+  MEETING
+  WHATSAPP
+  NOTE
+  LEAD_UPDATE
+  TASK
+  PROPOSAL
+}
+
+model Notification {
+  id          String             @id @default(cuid())
+  companyId   String
+  userId      String
+  type        NotificationType
+  title       String
+  message     String
+  isRead      Boolean            @default(false)
+  createdAt   DateTime           @default(now())
+
+  tenant      Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, userId, isRead])
+  @@index([userId, createdAt])
+}
+
+enum NotificationType {
+  LEAD_ASSIGNED
+  FOLLOW_UP_DUE
+  FOLLOW_UP_OVERDUE
+  MEETING_REMINDER
+  PROPOSAL_GENERATED
+  PROPOSAL_APPROVED
+  DEAL_WON
+  DEAL_LOST
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  companyId   String?
+  userId      String?
+  action      String
+  resource    String
+  resourceId  String?
+  oldValue    Json?
+  newValue    Json?
+  createdAt   DateTime @default(now())
+
+  tenant      Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, resource, createdAt])
+  @@index([companyId, userId])
+}
