@@ -75,7 +75,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
       }
     }
 
-    const updatedLead = await db.$transaction(async (tx: Prisma.TransactionClient) => {
+    const updatedLead = await db.$transaction(async (tx: any) => {
       const updated = await tx.lead.update({
         where: { id: leadId },
         data
