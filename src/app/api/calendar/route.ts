@@ -38,21 +38,21 @@ export async function GET(req: NextRequest) {
 
     // Format events for a unified calendar response
     const events = [
-      ...tasks.map(t => ({
+      ...tasks.map((t: any) => ({
         id: `task-${t.id}`,
         title: `Task: ${t.title} ${t.lead ? `(${t.lead.name})` : ''}`,
         date: t.dueDate,
         type: 'TASK',
         status: t.status
       })),
-      ...followUps.map(f => ({
+      ...followUps.map((f: any) => ({
         id: `followup-${f.id}`,
         title: `Follow-up: ${f.lead.name}`,
         date: f.scheduledAt,
         type: 'FOLLOWUP',
         status: f.status
       })),
-      ...meetings.map(m => ({
+      ...meetings.map((m: any) => ({
         id: `meeting-${m.id}`,
         title: `Meeting: ${m.title} ${m.lead ? `(${m.lead.name})` : ''}`,
         date: m.scheduledAt,
