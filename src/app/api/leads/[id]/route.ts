@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { Prisma } from '@prisma/client'
 import * as z from 'zod'
 
 const updateLeadSchema = z.object({
@@ -74,7 +75,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
       }
     }
 
-    const updatedLead = await db.$transaction(async (tx) => {
+    const updatedLead = await db.$transaction(async (tx: Prisma.TransactionClient) => {
       const updated = await tx.lead.update({
         where: { id: leadId },
         data
