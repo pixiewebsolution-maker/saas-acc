@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { Prisma } from '@prisma/client'
 import * as z from 'zod'
 
 const updateLeadSchema = z.object({
